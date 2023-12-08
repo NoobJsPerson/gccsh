@@ -1,2 +1,2 @@
 # gccsh
-use C in the shell
+use C in the shell (WIP)
