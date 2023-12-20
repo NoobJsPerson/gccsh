@@ -102,7 +102,7 @@ void gccsh_loop() {
 				"}\n"
 				"pclose(fp); return result;"
 				"}\n"
-				"int main() { char version[] = \"0.1.0\"; %s }", line);
+				"int main() { %s }", line);
 		fclose(fptr);
 		int compSuccess = system("gcc .gccshtemp.c -o .gccshtemp.bin");
 		if(compSuccess == 0) {
@@ -115,6 +115,8 @@ void gccsh_loop() {
 	} while (status);
 }
 int main(int argc, char **argv) {
+	if(setenv("GCCSH_VERSION","0.1.1",1)) fprintf(stderr,"gccsh: could not set GCCSH_VERSION environment variable");
 	gccsh_loop();
+	if(unsetenv("GCCSH_VERSION")) fprintf(stderr,"gccsh: could not remove GCCSH_VERSION environment, please remove manually");
 	return 0;
 }
