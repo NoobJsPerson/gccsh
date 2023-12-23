@@ -1,8 +1,10 @@
+#include <sys/wait.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <regex.h>
+#include <limits.h>
 
 #define GCCSH_RL_BUFSIZE 1024
 
@@ -75,12 +77,24 @@ void gccsh_loop() {
 	char *line;
 	int line_len;
 	int status = 1;
+	char* home_path = malloc(sizeof(char) * PATH_MAX);
+	home_path = getenv("HOME");
+	char* c_temp_path = malloc(sizeof(char) * PATH_MAX);
+	sprintf(c_temp_path, "%s/.gccshtemp.c", home_path);
+	printf("%s\n", c_temp_path);
+	char* bin_temp_path = malloc(sizeof(char) * PATH_MAX);
+	sprintf(bin_temp_path, "%s/.gccshtemp.bin", home_path);
+	printf("%s\n", bin_temp_path);
+	// 9 is the length of the compilation command without path (i added one just incase)
+	char comp_str[PATH_MAX+10];
+	sprintf(comp_str, "gcc %s -o %s", c_temp_path, bin_temp_path);
+	printf("%s\n", comp_str);
 	FILE *fptr;
 	do {
 		printf("> ");
 		line = gccsh_readline(&line_len);
 		gccsh_match_builtins(line, line_len);
-		fptr = fopen(".gccshtemp.c","w");
+		fptr = fopen(c_temp_path,"w");
 		if(fptr == NULL) {
 			perror("fopen");
 			exit(EXIT_FAILURE);
@@ -104,18 +118,32 @@ void gccsh_loop() {
 				"}\n"
 				"int main() { %s }", line);
 		fclose(fptr);
-		int compSuccess = system("gcc .gccshtemp.c -o .gccshtemp.bin");
+		int compSuccess = system(comp_str);
 		if(compSuccess == 0) {
-			system("./.gccshtemp.bin");
-		} else {
-			status = 0;
-		}
+			pid_t pid, wpid;
+			int status;
+			pid = fork();
+			if(pid == 0) {
+				int intexec = execv(bin_temp_path, (char*[]) {bin_temp_path, NULL});
+				if(intexec == -1) perror("gccsh");
+				exit(EXIT_FAILURE);
+			} else if(pid < 0) {
+				perror("gccsh");
+			} else {
+				do {
+					wpid = waitpid(pid, &status, WUNTRACED);
+				} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+			}
+		} else status = 0;
 		memset(line,0,strlen(line));
 		free(line);
 	} while (status);
+	free(home_path);
+	free(c_temp_path);
+	free(bin_temp_path);
 }
 int main(int argc, char **argv) {
-	if(setenv("GCCSH_VERSION","0.1.1",1)) fprintf(stderr,"gccsh: could not set GCCSH_VERSION environment variable");
+	if(setenv("GCCSH_VERSION","0.1.2",1)) fprintf(stderr,"gccsh: could not set GCCSH_VERSION environment variable");
 	gccsh_loop();
 	if(unsetenv("GCCSH_VERSION")) fprintf(stderr,"gccsh: could not remove GCCSH_VERSION environment, please remove manually");
 	return 0;
