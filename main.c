@@ -73,22 +73,34 @@ void gccsh_match_builtins(char* line, int line_len) {
 	regfree(&regex);
 	free(msgbuf);
 }
+int gccsh_exec(char* args[]) {
+	pid_t pid, wpid;
+	int status;
+	pid = fork();
+	if(pid == 0) {
+		int intexec = execvp(args[0], args);
+		if(intexec == -1) perror("gccsh");
+		exit(EXIT_FAILURE);
+	} else if(pid < 0) {
+		perror("gccsh");
+	} else {
+		do {
+			wpid = waitpid(pid, &status, WUNTRACED);
+		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+	}
+	return 1;
+}
 void gccsh_loop() {
 	char *line;
 	int line_len;
 	int status = 1;
-	char* home_path = malloc(sizeof(char) * PATH_MAX);
-	home_path = getenv("HOME");
+	char* home_path = getenv("HOME");
 	char* c_temp_path = malloc(sizeof(char) * PATH_MAX);
 	sprintf(c_temp_path, "%s/.gccshtemp.c", home_path);
 	printf("%s\n", c_temp_path);
 	char* bin_temp_path = malloc(sizeof(char) * PATH_MAX);
 	sprintf(bin_temp_path, "%s/.gccshtemp.bin", home_path);
 	printf("%s\n", bin_temp_path);
-	// 9 is the length of the compilation command without path (i added one just incase)
-	char comp_str[PATH_MAX+10];
-	sprintf(comp_str, "gcc %s -o %s", c_temp_path, bin_temp_path);
-	printf("%s\n", comp_str);
 	FILE *fptr;
 	do {
 		printf("> ");
@@ -118,27 +130,13 @@ void gccsh_loop() {
 				"}\n"
 				"int main() { %s }", line);
 		fclose(fptr);
-		int compSuccess = system(comp_str);
-		if(compSuccess == 0) {
-			pid_t pid, wpid;
-			int status;
-			pid = fork();
-			if(pid == 0) {
-				int intexec = execv(bin_temp_path, (char*[]) {bin_temp_path, NULL});
-				if(intexec == -1) perror("gccsh");
-				exit(EXIT_FAILURE);
-			} else if(pid < 0) {
-				perror("gccsh");
-			} else {
-				do {
-					wpid = waitpid(pid, &status, WUNTRACED);
-				} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-			}
+		int compSuccess = gccsh_exec((char*[]) {"gcc", c_temp_path, "-o", bin_temp_path, NULL});
+		if(compSuccess == 1) {
+		gccsh_exec((char*[]) {bin_temp_path,NULL});
 		} else status = 0;
 		memset(line,0,strlen(line));
 		free(line);
 	} while (status);
-	free(home_path);
 	free(c_temp_path);
 	free(bin_temp_path);
 }
