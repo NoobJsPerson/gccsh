@@ -141,7 +141,7 @@ void gccsh_loop() {
 	free(bin_temp_path);
 }
 int main(int argc, char **argv) {
-	if(setenv("GCCSH_VERSION","0.1.2",1)) fprintf(stderr,"gccsh: could not set GCCSH_VERSION environment variable");
+	if(setenv("GCCSH_VERSION","0.1.3",1)) fprintf(stderr,"gccsh: could not set GCCSH_VERSION environment variable");
 	gccsh_loop();
 	if(unsetenv("GCCSH_VERSION")) fprintf(stderr,"gccsh: could not remove GCCSH_VERSION environment, please remove manually");
 	return 0;
