@@ -3,6 +3,7 @@ use C in the shell (WIP)
 ### features
 - execute C code in a shell-like environment
 - familiar builtins like `chdir` and `exit`
+- `gccsh_profile` file gets ran whenever you run a command and it gets placed in the main function. you can add functions in it to be always defined when you run any command.
 - `cmd` builtin allows you to run a command in the default shell and returns the output.
 - the `GCCSH_VERSION` environment variable while the program is running
 ### known issues

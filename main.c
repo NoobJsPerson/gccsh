@@ -51,7 +51,6 @@ void gccsh_match_builtins(char* line, int line_len) {
 	}
 	reti = regexec(&regex, line, 2, matches, 0);
 	if(reti == 0) {
-		// Match
 		memcpy(msgbuf, line + matches[1].rm_so + 2, matches[1].rm_eo - matches[1].rm_so - 4);
 		chdir(msgbuf);
 	} else if(reti != REG_NOMATCH) {
@@ -97,11 +96,24 @@ void gccsh_loop() {
 	char* home_path = getenv("HOME");
 	char* c_temp_path = malloc(sizeof(char) * PATH_MAX);
 	sprintf(c_temp_path, "%s/.gccshtemp.c", home_path);
-	printf("%s\n", c_temp_path);
 	char* bin_temp_path = malloc(sizeof(char) * PATH_MAX);
 	sprintf(bin_temp_path, "%s/.gccshtemp.bin", home_path);
-	printf("%s\n", bin_temp_path);
-	FILE *fptr;
+
+	FILE *fptr; // .gcctemp.c
+	FILE *fprofile_ptr; // .gccsh_profile
+
+	// initialise profile
+	fprofile_ptr = fopen("./gccsh_profile", "r");
+	off_t size = lseek(fileno(fprofile_ptr), 0, SEEK_END);
+	printf("%ld\n", size);
+	rewind(fprofile_ptr);
+	char* profile_str = malloc(size);
+	char* temp_str = malloc(size);
+	while(fgets(temp_str, size, fprofile_ptr)) {
+		strcat(profile_str,temp_str);
+	}
+	fclose(fprofile_ptr);
+	free(temp_str);
 	do {
 		printf("> ");
 		line = gccsh_readline(&line_len);
@@ -111,24 +123,7 @@ void gccsh_loop() {
 			perror("fopen");
 			exit(EXIT_FAILURE);
 		}
-		fprintf(fptr,"#include <stdio.h>\n"
-				"#include <unistd.h>\n"
-				"#include <stdlib.h>\n"
-				"char* cmd(char* command) {\n"
-				"FILE *fp; char buffer[1024]; char* result = NULL; size_t result_size = 0;"
-				"fp = popen(command, \"r\");"
-				"if (fp == NULL) {"
-				"perror(\"Error opening pipe\");"
-				"return NULL;"
-				"}\n"
-				"while (fgets(buffer, sizeof(buffer), fp) != NULL) {"
-				"result_size += strlen(buffer) * sizeof(char);"
-				"result = realloc(result, result_size);"
-				"strcat(result, buffer);"
-				"}\n"
-				"pclose(fp); return result;"
-				"}\n"
-				"int main() { %s }", line);
+		fprintf(fptr, profile_str, line);
 		fclose(fptr);
 		int compSuccess = gccsh_exec((char*[]) {"gcc", c_temp_path, "-o", bin_temp_path, NULL});
 		if(compSuccess == 1) {
@@ -137,6 +132,7 @@ void gccsh_loop() {
 		memset(line,0,strlen(line));
 		free(line);
 	} while (status);
+	free(profile_str);
 	free(c_temp_path);
 	free(bin_temp_path);
 }
